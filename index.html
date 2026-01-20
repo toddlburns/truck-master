@@ -393,8 +393,8 @@
                 <button class="menu-btn" id="leaderboard-btn" style="background: linear-gradient(135deg, #4ade80, #22c55e);">LEADERBOARD</button>
             </div>
             <div id="instructions">
-                <p>Desktop: Arrow Keys to move</p>
-                <p>Mobile: Use on-screen controls</p>
+                <p>Up/Down: Gas & Brake</p>
+                <p>Left/Right: Steer</p>
             </div>
         </div>
 
@@ -1200,48 +1200,49 @@
             requestAnimationFrame(gameLoop);
 
             if (gameState.isPlaying && !gameState.isPaused) {
-                // Update truck physics with directional controls
+                // Update truck physics - REAL DRIVING CONTROLS
                 const onUnstable = checkUnstablePlank();
                 const speedMultiplier = onUnstable ? 0.4 : 1;
-                const moveSpeed = truck.maxSpeed * speedMultiplier;
+                const maxSpeed = truck.maxSpeed * speedMultiplier;
 
-                // Calculate movement direction based on arrow keys
-                let moveX = 0;
-                let moveZ = 0;
+                // STEERING - left/right turns the truck (only when moving)
+                if (Math.abs(truck.speed) > 0.005) {
+                    if (controls.left) {
+                        truck.rotation += truck.turnSpeed * (truck.speed > 0 ? 1 : -1);
+                    }
+                    if (controls.right) {
+                        truck.rotation -= truck.turnSpeed * (truck.speed > 0 ? 1 : -1);
+                    }
+                }
 
-                if (controls.forward) moveZ -= moveSpeed;  // Up arrow = move up on screen
-                if (controls.backward) moveZ += moveSpeed; // Down arrow = move down on screen
-                if (controls.left) moveX -= moveSpeed;     // Left arrow = move left on screen
-                if (controls.right) moveX += moveSpeed;    // Right arrow = move right on screen
+                // ACCELERATION/BRAKING - up/down controls speed
+                if (controls.forward) {
+                    truck.speed += truck.acceleration;
+                    if (truck.speed > maxSpeed) truck.speed = maxSpeed;
+                } else if (controls.backward) {
+                    truck.speed -= truck.acceleration;
+                    if (truck.speed < -maxSpeed * 0.5) truck.speed = -maxSpeed * 0.5;
+                } else {
+                    // Natural deceleration when no gas/brake
+                    if (truck.speed > 0) {
+                        truck.speed -= truck.deceleration;
+                        if (truck.speed < 0) truck.speed = 0;
+                    } else if (truck.speed < 0) {
+                        truck.speed += truck.deceleration;
+                        if (truck.speed > 0) truck.speed = 0;
+                    }
+                }
 
-                // Calculate new position
-                const newX = truck.position.x + moveX;
-                const newZ = truck.position.z + moveZ;
+                // Move truck in the direction it's facing
+                const newX = truck.position.x - Math.sin(truck.rotation) * truck.speed;
+                const newZ = truck.position.z - Math.cos(truck.rotation) * truck.speed;
 
                 // Check collision and update position
-                let movedX = false;
-                let movedZ = false;
-
-                if (moveX !== 0 && !checkCollision(newX, truck.position.z)) {
+                if (!checkCollision(newX, newZ)) {
                     truck.position.x = newX;
-                    movedX = true;
-                }
-                if (moveZ !== 0 && !checkCollision(truck.position.x, newZ)) {
                     truck.position.z = newZ;
-                    movedZ = true;
-                }
-
-                // Update truck rotation to face movement direction
-                if (moveX !== 0 || moveZ !== 0) {
-                    const targetRotation = Math.atan2(-moveX, -moveZ);
-                    // Smooth rotation
-                    let rotationDiff = targetRotation - truck.rotation;
-                    // Normalize the angle
-                    while (rotationDiff > Math.PI) rotationDiff -= Math.PI * 2;
-                    while (rotationDiff < -Math.PI) rotationDiff += Math.PI * 2;
-                    truck.rotation += rotationDiff * 0.15;
-                    truck.speed = Math.sqrt(moveX * moveX + moveZ * moveZ);
                 } else {
+                    // Hit a wall - stop
                     truck.speed = 0;
                 }
 
@@ -1261,13 +1262,19 @@
                     }
                 }
 
-                // Update camera (third-person follow view)
-                const cameraDistance = 5;
-                const cameraHeight = 4;
-                camera.position.x = truck.position.x + Math.sin(truck.rotation) * cameraDistance;
-                camera.position.z = truck.position.z + Math.cos(truck.rotation) * cameraDistance;
+                // Camera follows behind the truck (third-person driving view)
+                const cameraDistance = 6;
+                const cameraHeight = 3;
+                const cameraBehindX = truck.position.x + Math.sin(truck.rotation) * cameraDistance;
+                const cameraBehindZ = truck.position.z + Math.cos(truck.rotation) * cameraDistance;
+
+                // Smooth camera follow
+                camera.position.x += (cameraBehindX - camera.position.x) * 0.1;
+                camera.position.z += (cameraBehindZ - camera.position.z) * 0.1;
                 camera.position.y = cameraHeight;
-                camera.lookAt(truck.position.x, 0.5, truck.position.z);
+
+                // Camera looks at the truck
+                camera.lookAt(truck.position.x, 0.8, truck.position.z);
 
                 // Update speedometer
                 const speedMPH = Math.abs(truck.speed) * 200;
