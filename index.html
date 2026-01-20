@@ -1302,46 +1302,45 @@
 
         // Input handlers
         function setupControls() {
-            // Keyboard
+            // Keyboard - using e.code for reliable arrow key detection
             document.addEventListener('keydown', (e) => {
-                switch (e.key.toLowerCase()) {
-                    case 'w':
-                    case 'arrowup':
-                        controls.forward = true;
-                        break;
-                    case 's':
-                    case 'arrowdown':
-                        controls.backward = true;
-                        break;
-                    case 'a':
-                    case 'arrowleft':
-                        controls.left = true;
-                        break;
-                    case 'd':
-                    case 'arrowright':
-                        controls.right = true;
-                        break;
+                let handled = false;
+
+                if (e.code === 'ArrowUp' || e.code === 'KeyW') {
+                    controls.forward = true;
+                    handled = true;
+                }
+                if (e.code === 'ArrowDown' || e.code === 'KeyS') {
+                    controls.backward = true;
+                    handled = true;
+                }
+                if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
+                    controls.left = true;
+                    handled = true;
+                }
+                if (e.code === 'ArrowRight' || e.code === 'KeyD') {
+                    controls.right = true;
+                    handled = true;
+                }
+
+                // Prevent arrow keys from scrolling the page
+                if (handled && gameState.isPlaying) {
+                    e.preventDefault();
                 }
             });
 
             document.addEventListener('keyup', (e) => {
-                switch (e.key.toLowerCase()) {
-                    case 'w':
-                    case 'arrowup':
-                        controls.forward = false;
-                        break;
-                    case 's':
-                    case 'arrowdown':
-                        controls.backward = false;
-                        break;
-                    case 'a':
-                    case 'arrowleft':
-                        controls.left = false;
-                        break;
-                    case 'd':
-                    case 'arrowright':
-                        controls.right = false;
-                        break;
+                if (e.code === 'ArrowUp' || e.code === 'KeyW') {
+                    controls.forward = false;
+                }
+                if (e.code === 'ArrowDown' || e.code === 'KeyS') {
+                    controls.backward = false;
+                }
+                if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
+                    controls.left = false;
+                }
+                if (e.code === 'ArrowRight' || e.code === 'KeyD') {
+                    controls.right = false;
                 }
             });
 
@@ -1389,6 +1388,10 @@
             gameState.totalTime = 0;
             gameState.isPlaying = true;
             gameState.startTime = Date.now();
+
+            // Remove focus from input so keyboard works
+            document.getElementById('player-name').blur();
+            document.body.focus();
 
             startScreen.classList.add('hidden');
             hud.classList.remove('hidden');
